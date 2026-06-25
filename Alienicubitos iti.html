@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>NEON SHOOTER - NO BORDER RESET</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; cursor: crosshair; font-family: sans-serif; }
+        #menu { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #fff; background: rgba(0,0,0,0.9); padding: 40px; border: 2px solid #0ff; border-radius: 15px; z-index: 100; }
+        .skin-btn { margin: 10px; padding: 10px; cursor: pointer; border: 2px solid #fff; background: none; color: #fff; }
+        #ui { position: absolute; top: 10px; left: 10px; color: #fff; pointer-events: none; z-index: 10; display: none; }
+    </style>
+</head>
+<body>
+
+<div id="menu">
+    <h1>SELECCIONA TU NAVE</h1>
+    <button class="skin-btn" onclick="startGame('triangle')">TRIÁNGULO</button>
+    <button class="skin-btn" onclick="startGame('square')">CUADRADO</button>
+    <button class="skin-btn" onclick="startGame('circle')">CÍRCULO</button>
+</div>
+
+<div id="ui"><h2 id="score">SCORE: 0</h2></div>
+<canvas id="game"></canvas>
+
+<script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+
+    let player = { x: canvas.width/2, y: canvas.height - 100, skin: 'triangle' };
+    let bullets = [], enemies = [], score = 0, gameTime = 0, playing = false, canDie = true;
+
+    function startGame(skin) {
+        player.skin = skin;
+        document.getElementById('menu').style.display = 'none';
+        document.getElementById('ui').style.display = 'block';
+        playing = true;
+        requestAnimationFrame(update);
+    }
+
+    function playerDied() {
+        if (!canDie) return;
+        canDie = false;
+        enemies = []; 
+        bullets = [];
+        score = 0;
+        setTimeout(() => { canDie = true; }, 1000);
+    }
+
+    window.addEventListener('mousemove', (e) => { player.x = e.clientX; });
+
+    function update() {
+        if (!playing) return;
+        gameTime++;
+
+        if (gameTime % 15 === 0) bullets.push({ x: player.x, y: player.y });
+        if (gameTime % 40 === 0) {
+            enemies.push({ x: Math.random() * canvas.width, y: -50, hp: 3, maxHp: 3 });
+        }
+
+        bullets.forEach((b, i) => {
+            b.y -= 10;
+            if (b.y < 0) bullets.splice(i, 1);
+            enemies.forEach((e, ei) => {
+                if (Math.hypot(b.x - e.x, b.y - e.y) < 25) {
+                    e.hp--; bullets.splice(i, 1);
+                    if (e.hp <= 0) { enemies.splice(ei, 1); score += 100; }
+                }
+            });
+        });
+
+        enemies.forEach((e, i) => {
+            e.y += 2 + (gameTime / 2000);
+            // Colisión con jugador (reinicio)
+            if (Math.hypot(player.x - e.x, player.y - e.y) < 30) playerDied();
+            // Eliminación si salen de pantalla (sin reiniciar)
+            if (e.y > canvas.height) enemies.splice(i, 1);
+        });
+
+        draw();
+        requestAnimationFrame(update);
+    }
+
+    function draw() {
+        ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        ctx.fillStyle = '#0ff';
+        if(player.skin === 'triangle') {
+            ctx.beginPath(); ctx.moveTo(player.x, player.y-20); ctx.lineTo(player.x-20, player.y+20); ctx.lineTo(player.x+20, player.y+20); ctx.fill();
+        } else if(player.skin === 'square') {
+            ctx.fillRect(player.x-20, player.y-20, 40, 40);
+        } else {
+            ctx.beginPath(); ctx.arc(player.x, player.y, 20, 0, Math.PI*2); ctx.fill();
+        }
+        
+        bullets.forEach(b => { ctx.fillStyle = '#ff0'; ctx.fillRect(b.x-2, b.y, 4, 10); });
+        enemies.forEach(e => {
+            ctx.fillStyle = '#f0f'; ctx.fillRect(e.x-15, e.y-15, 30, 30);
+            ctx.fillStyle = '#0f0'; ctx.fillRect(e.x-15, e.y-25, 30 * (e.hp/e.maxHp), 5);
+        });
+        document.getElementById('score').innerText = "SCORE: " + score;
+    }
+</script>
+</body>
+</html>

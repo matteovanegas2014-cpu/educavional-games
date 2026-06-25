@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CAOS TOTAL - VINI JR EDITION</title>
+    <style>
+        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; }
+        canvas { display: block; }
+        #menu {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: #fff; text-align: center; background: rgba(0,0,0,0.8);
+            padding: 40px; border: 2px solid #0ff; border-radius: 10px; z-index: 10;
+        }
+        button { padding: 15px 30px; font-size: 20px; cursor: pointer; background: #0ff; border: none; border-radius: 5px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="menu">
+    <h1 id="titulo">CAOS TOTAL</h1>
+    <button id="btnJugar" onclick="prepararJuego()">JUGAR</button>
+</div>
+
+<canvas id="juego"></canvas>
+
+<script>
+    const canvas = document.getElementById('juego');
+    const ctx = canvas.getContext('2d');
+    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+    window.addEventListener('resize', resize); resize();
+
+    let player = { x: 0, y: 0 };
+    let objetos = [], ataqueEspecial = { activo: false, x: 0, timer: 0 };
+    let score = 0, jugando = false, cuenta = 0;
+
+    window.addEventListener('mousemove', (e) => { player.x = e.clientX; player.y = e.clientY; });
+
+    function prepararJuego() {
+        document.getElementById('menu').style.display = 'none';
+        cuenta = 3;
+        let c = setInterval(() => {
+            cuenta--;
+            if (cuenta <= 0) { clearInterval(c); jugando = true; update(); }
+        }, 1000);
+    }
+
+    function gameOver() {
+        jugando = false;
+        objetos = []; ataqueEspecial = { activo: false, x: 0, timer: 0 };
+        document.getElementById('menu').style.display = 'block';
+        document.getElementById('titulo').innerText = "GAME OVER";
+    }
+
+    function update() {
+        if (!jugando) return;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // --- RAYO GIGANTE ---
+        if (Math.random() < 0.005 && !ataqueEspecial.activo) {
+            ataqueEspecial.activo = true;
+            ataqueEspecial.x = Math.random() * (canvas.width - 200);
+            ataqueEspecial.timer = 120;
+        }
+        if (ataqueEspecial.activo) {
+            if (ataqueEspecial.timer > 60) {
+                ctx.strokeStyle = 'rgba(255, 0, 0, 0.5)'; ctx.lineWidth = 20;
+                ctx.strokeRect(ataqueEspecial.x, 0, 200, canvas.height);
+            } else {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+                ctx.fillRect(ataqueEspecial.x, 0, 200, canvas.height);
+                if (player.x > ataqueEspecial.x && player.x < ataqueEspecial.x + 200) gameOver();
+            }
+            ataqueEspecial.timer--;
+            if (ataqueEspecial.timer <= 0) ataqueEspecial.activo = false;
+        }
+
+        // --- CAOS TOTAL (4 DIRECCIONES + ZIGZAG LENTO) ---
+        if (Math.random() < 0.15) {
+            let t = Math.random();
+            if (t < 0.25) objetos.push({ x: Math.random() * canvas.width, y: -50, vx: 0, vy: 12, tipo: 'rayo' }); // Arriba
+            else if (t < 0.5) objetos.push({ x: canvas.width + 50, y: Math.random() * canvas.height, vx: -12, vy: 0, tipo: 'rayo' }); // Derecha
+            else if (t < 0.75) objetos.push({ x: Math.random() * canvas.width, y: canvas.height + 50, vx: 0, vy: -12, tipo: 'rayo' }); // Abajo
+            else objetos.push({ x: Math.random() * canvas.width, y: -50, vx: 2, vy: 4, tipo: 'bola', angulo: 0 }); // ZigZag lento
+        }
+
+        objetos.forEach((o, i) => {
+            if (o.tipo === 'bola') {
+                o.angulo += 0.05; // Más lento
+                o.x += Math.sin(o.angulo) * 5; 
+                o.y += o.vy;
+                ctx.fillStyle = '#ff0'; ctx.beginPath(); ctx.arc(o.x, o.y, 10, 0, Math.PI*2); ctx.fill();
+            } else {
+                o.x += o.vx; o.y += o.vy;
+                ctx.fillStyle = (o.vx === 0 || o.vy === 0) ? '#f0f' : '#0f0';
+                ctx.fillRect(o.x, o.y, 20, 20);
+            }
+            if (Math.hypot(o.x - player.x, o.y - player.y) < 20) gameOver();
+            if (o.y > canvas.height + 50 || o.y < -100 || o.x > canvas.width + 100 || o.x < -100) objetos.splice(i, 1);
+        });
+
+        ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(player.x, player.y, 8, 0, Math.PI*2); ctx.fill();
+        score++;
+        ctx.fillText("Score: " + Math.floor(score/10), 20, 30);
+        requestAnimationFrame(update);
+    }
+
+    function draw() {
+        if (cuenta > 0) {
+            ctx.fillStyle = 'black'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'white'; ctx.font = '100px sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(cuenta, canvas.width/2, canvas.height/2);
+        }
+        requestAnimationFrame(draw);
+    }
+    draw();
+</script>
+</body>
+</html>
